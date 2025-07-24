@@ -1,0 +1,4 @@
+venv/
+cr_inference/data/
+cr_inference/__pycache__/
+cr_inference/plots/
