@@ -26,6 +26,8 @@ parser.add_argument("--nmax2", type=float)
 parser.add_argument("--f_min", type=int)
 parser.add_argument("--f_max", type=int)
 parser.add_argument("--antenna_pos", type=int)
+parser.add_argument("--tag", type=str)
+
 
 args = parser.parse_args()
 
@@ -210,7 +212,7 @@ plt.tight_layout()
 output_dir = '/cr/users/abro/cr_inference/cr_inference/plots'
 os.makedirs(output_dir, exist_ok=True)
 
-full_path = os.path.join(output_dir, f'62804598_30_500_antenna_{antenna_position}.png')
+full_path = os.path.join(output_dir, f'62804598_30_500_antenna_{antenna_position}_{args.tag}.png')
 plt.savefig(full_path, dpi=300, bbox_inches='tight', transparent=False)
 
 
