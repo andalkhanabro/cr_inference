@@ -16,7 +16,6 @@ from cr_inference.utils import *
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "cm" 
 
-
 parser = ArgumentParser()
 
 parser.add_argument("--xmax1", type=float)
@@ -27,7 +26,8 @@ parser.add_argument("--f_min", type=int)
 parser.add_argument("--f_max", type=int)
 parser.add_argument("--antenna_pos", type=int)
 parser.add_argument("--tag", type=str)
-
+parser.add_argument("--title", type=str)
+parser.add_argument("--dir", type=str)
 
 args = parser.parse_args()
 
@@ -102,7 +102,7 @@ if np.abs(origin_xmax - parameters_2["xmax"]) > 200:
     print("\nShower 2's xmax is violating accuracy assumptions.")
 
 
-fig, ax = plt.subplots(nrows = 2, ncols =2, figsize=(8,6))
+fig, ax = plt.subplots(nrows = 2, ncols = 2, figsize=(8,6))
 
 ax1, ax2, ax3, ax4 = ax.flatten()
 
@@ -146,6 +146,7 @@ def fourier_on_ef(e_field_magnitude, time_traces):
     spectrum = np.fft.rfft(e_field_magnitude)  
 
     return frequencies, np.abs(spectrum), n_freq
+
 
 frequencies_geo_1, amp_spectrum_geo_1, _ = fourier_on_ef(geomagnetic_antenna_ef_1, time_traces_per_antenna)
 frequencies_geo_2, amp_spectrum_geo_2, _ = fourier_on_ef(geomagnetic_antenna_ef_2, time_traces_per_antenna)
@@ -193,7 +194,6 @@ mesh = ax4.pcolormesh(
     alpha=0.9
 )
 
-
 #ax4.set_aspect('equal', adjustable='datalim')  # now adjusts the data limits to keep 1:1 aspect
 ax4.set_xlim(-300, 300)
 ax4.set_ylim(-300, 300)
@@ -205,17 +205,18 @@ ax4.set_ylabel("(v x v x B) [m]")
 cbar = fig.colorbar(mesh, ax=ax4)
 cbar.set_label(r'Fluence (eV / $m^2$)')
 
+if args.title:
+    fig.suptitle(args.title, fontsize=12)
+
 ### / fluence calc ends here ####
 
 plt.tight_layout()
 
-output_dir = '/cr/users/abro/cr_inference/cr_inference/plots'
-os.makedirs(output_dir, exist_ok=True)
+if dir:
+    output_dir = args.dir
+else:
+    output_dir = '/cr/users/abro/cr_inference/cr_inference/plots'
 
+os.makedirs(output_dir, exist_ok=True)
 full_path = os.path.join(output_dir, f'62804598_30_500_antenna_{antenna_position}_{args.tag}.png')
 plt.savefig(full_path, dpi=300, bbox_inches='tight', transparent=False)
-
-
-
-
-

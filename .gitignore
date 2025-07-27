@@ -2,6 +2,7 @@ venv/
 cr_inference/data/
 cr_inference/__pycache__/
 cr_inference/executables/__pycache__/forward_model_t_jax.cpython-310.pyc
+cr_inference/plots/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
