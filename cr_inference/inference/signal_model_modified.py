@@ -1,7 +1,6 @@
 import logging
 import operator
 import os
-# from typing import Self, Union, Callable
 from typing import TypeVar
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -11,11 +10,11 @@ import numpy as np
 import nifty8.re as jft
 from smiet.jax import Shower, TemplateSynthesis
 from jax_radio_tools import units, cstrafo, geo_ce_to_vB_vvB_v
+from nifty8.re.model import Initializer
 
 # modify your path to the templates and atmospheric model path
 
 path_to_templates = "/cr/users/abro/cr_inference/cr_inference/data/templates/template_62804598_proton_30_500_100_dt4.h5"  # use the single template 
-
 
 class SignalModel(jft.Model):
 
@@ -31,9 +30,10 @@ class SignalModel(jft.Model):
         Nmax_fac_prior,
         origin_num : int = 62804598,                                                                      # DETAIL: im using 62804598 here because of the template we are using                
         primary_ptype : str = "proton",
-        freq_range: list = [30 * units.MHz, 500 * units.MHz, 100 * units.MHz],                            # DETAIL: can this be used with templates which have different frequencies?
-                                                                                                          # TODO: change to 50-200, central = 50
-        delta_t: float = 4 * units.ns,                                                                    # FIXME: changed from 2 to 4 to match template name 
+        freq_range: list = [50 * units.MHz, 200 * units.MHz, 50 * units.MHz],                            # KEITO: changed it to this because of the template we have
+                                                                                                          # KEITO: given origin shower has 42.8 degrees? 
+                                                                                                         
+        delta_t: float = 2 * units.ns,                                                                                                   
 
     ) -> None:
 
@@ -57,6 +57,12 @@ class SignalModel(jft.Model):
         self.freq_range = freq_range      # frequency bandwidth in MHz
         self.delta_t = delta_t            # timing resolution in ns
         self.f_smiet_sys = None           # systematic uncertainty for smiet
+
+
+        self.xmax_prior = xmax_prior
+        self.nmax_prior = nmax_prior
+        self.delta_xmax_prior = delta_xmax_prior
+        self.Nmax_fac_prior = Nmax_fac_prior
 
         self.shower_params = {
             "long": None,
@@ -95,9 +101,22 @@ class SignalModel(jft.Model):
             magnetic_field_vector=self.shower_params["magnetic_field_vector"],
         )
         self.grammages = self.synthesis.grammages
-	
-	# !! modify this line to incorporate eahc shower prior using prior1.init | prior2.init
-        super().__init__(init=self.xmax_prior.init | self.nmax_prior | self.delta_xmax_prior | self.Nmax_fac_prior) # TODO: add other priors here # DETAIL: added 
+
+
+        combined_struct = {                                                 # DETAIL: non-trivial fix, sus area for future bugs! 
+            **self.xmax_prior.init._call_or_struct,
+            **self.nmax_prior.init._call_or_struct,
+            **self.delta_xmax_prior.init._call_or_struct,
+            **self.Nmax_fac_prior.init._call_or_struct,
+        }
+
+        combined_init = Initializer(combined_struct)
+
+        super().__init__(init=combined_init)
+
+	# # !! modify this line to incorporate each shower prior using prior1.init | prior2.init
+    #     super().__init__(init= (self.xmax_prior.init | self.nmax_prior.init | self.delta_xmax_prior.init | self.Nmax_fac_prior.init))                  # KEITO: ask Keito about this line. How may I combine the priors? 
+
  
     def __load_template(self, origin_num: int, primary_ptype: str, starting_grammage : float = 200) -> None:
         """
@@ -121,10 +140,18 @@ class SignalModel(jft.Model):
         # "template_62804598_proton_30_500_100_dt4.h5" 
 
         template_name = f"template_{origin_num}_{primary_ptype}_{(self.freq_range[0] / units.MHz):.0f}_{(self.freq_range[1] / units.MHz):.0f}_{(self.freq_range[2] / units.MHz):.0f}_dt{self.delta_t * 10:.0f}.h5"
-        abs_path = "/cr/users/abro/cr_inference/cr_inference/data/templates/template_62804598_proton_30_500_100_dt4.h5"
        # synthesis.load_template(template_name, os.path.join(path_to_templates, "templates"))  
-        synthesis.load_template(abs_path)                                                                   # FIXME: make this dynamic after discussing with Keito 
-        synthesis.truncate_atmosphere(starting_grammage=starting_grammage)                                  #TODO: check paths passed 
+
+        template_path = "/cr/users/abro/cr_inference/cr_inference/data/templates"                            
+        template_name = "template_62804598_proton_30_500_100_dt4.h5"
+        template_name = "template_62804598_proton_50_200_50_dt20.h5"                    # FIXME: make this dynamic after discussing with Keito 
+
+        synthesis.load_template(template_file=template_name,
+                                save_dir=template_path) 
+
+        synthesis.truncate_atmosphere(starting_grammage=starting_grammage)   
+
+        return synthesis                            
 
 
     def __call__(self, xi: jax.typing.ArrayLike) -> jax.Array:
@@ -138,11 +165,11 @@ class SignalModel(jft.Model):
         
         Returns:
         --------
-        final_eifld : jax.typing.ArrayLike
+        final_efield : jax.typing.ArrayLike
             the electric field traces in the shower plane.
         """
         
-        # evaluate the parameters here using your prirors
+        # evaluate the parameters here using your priors
         xmax1 = self.xmax_prior(xi)
         nmax1 = jnp.exp(self.nmax_prior(xi))
         delta_xmax = self.delta_xmax_prior(xi)
@@ -155,7 +182,7 @@ class SignalModel(jft.Model):
         L = 200                                                                     #FIXME: dont hardcode for later
         R = 0.25                                                                    #FIXME: dont hardcode for later 
 
-        print(f"\n X_max_1: {xmax1}\n Delta_xmax: {delta_xmax}\n N_max_1: {nmax1:2e}\n N_fac: {nmax_fac}\n")        
+        # print(f"\n X_max_1: {xmax1}\n Delta_xmax: {delta_xmax}\n N_max_1: {nmax1:2e}\n N_fac: {nmax_fac}\n")        
 	
 	    # parameterise the two longitudinal profiles (DB)
 
@@ -165,8 +192,8 @@ class SignalModel(jft.Model):
         origin_information = self.synthesis.template_information    # self.synthesis is the template 
 
         parameters_1 = {
-            "xmax": args.xmax1,  
-            "nmax": args.nmax1,
+            "xmax": xmax1,  
+            "nmax": nmax1,
             "zenith": origin_information["zenith"],
             "azimuth": origin_information["azimuth"],
             "magnetic_field_vector": origin_information["magnetic_field_vector"],
@@ -174,8 +201,8 @@ class SignalModel(jft.Model):
         }
 
         parameters_2 = {
-            "xmax": args.xmax2,  
-            "nmax": args.nmax2,
+            "xmax": xmax2,  
+            "nmax": nmax2,
             "zenith": origin_information["zenith"],
             "azimuth": origin_information["azimuth"],
             "magnetic_field_vector": origin_information["magnetic_field_vector"],
@@ -184,11 +211,11 @@ class SignalModel(jft.Model):
 
         grammages = self.synthesis.grammages
 
-        shower_1.set_parameters(grammages, parameters_1)
-        shower_2.set_parameters(grammages, parameters_2)
+        shower1.set_parameters(grammages, parameters_1)
+        shower2.set_parameters(grammages, parameters_2)
 
         long_profile_1 = gaisser_hillas_function_LR(
-            x=template.grammages,
+            x=self.synthesis.grammages,
             nmax=parameters_1["nmax"],
             xmax=parameters_1["xmax"],
             L = 200,
@@ -196,7 +223,7 @@ class SignalModel(jft.Model):
         )
 
         long_profile_2 = gaisser_hillas_function_LR(
-            x=template.grammages,
+            x=self.synthesis.grammages,
             nmax=parameters_2["nmax"],
             xmax=parameters_2["xmax"],
             L = 200,
@@ -205,19 +232,103 @@ class SignalModel(jft.Model):
 
         origin_xmax = self.synthesis.template_information["xmax"] 
 
-        if np.abs(origin_xmax - parameters_1["xmax"]) > 200:
-            print("\nShower 1's xmax is violating accuracy assumptions.")
-
-        if np.abs(origin_xmax - parameters_2["xmax"]) > 200:
-            print("\nShower 2's xmax is violating accuracy assumptions.")
-
         shower1.set_longitudinal_profile(long_profile_1)
         shower2.set_longitudinal_profile(long_profile_2)
 
-        e_field_traces_1 = self.synthesis.map_template(shower_1)
-        e_field_traces_2 = self.synthesis.map_template(shower_2)
+        e_field_traces_1 = self.synthesis.map_template(shower1)
+        e_field_traces_2 = self.synthesis.map_template(shower2)
         template_time_traces = self.synthesis.get_time_axis()
 
         db_traces = e_field_traces_1 + e_field_traces_2
 
-        return db_traces
+        return db_traces        # final e field 
+
+    def call_with_parameters(self, parameters) -> jax.Array:
+        """
+        Return the traces evaluated from each sample.
+        
+        Parameters:
+        -----------
+        xi : jax.typing.ArrayLike
+            the hyperpriors, sampled via a normal distribution
+        
+        Returns:
+        --------
+        final_efield : jax.typing.ArrayLike
+            the electric field traces in the shower plane.
+        """
+        
+        # evaluate the parameters here using your priors
+        xmax1 = parameters["xmax1"]
+        nmax1 = parameters["nmax1"]
+        delta_xmax = parameters["delta_xmax"]
+        nmax_fac = parameters["nmax_fac"]
+
+	    # calculate xmax2, nmax2
+
+        xmax2 = xmax1 + delta_xmax                          
+        nmax2 = nmax1 * nmax_fac
+        L = 200                                                                     #FIXME: dont hardcode for later
+        R = 0.25                                                                    #FIXME: dont hardcode for later 
+
+        # print(f"\n X_max_1: {xmax1}\n Delta_xmax: {delta_xmax}\n N_max_1: {nmax1:2e}\n N_fac: {nmax_fac}\n")        
+	
+	    # parameterise the two longitudinal profiles (DB)
+
+        shower1 = Shower()
+        shower2 = Shower()
+
+        origin_information = self.synthesis.template_information    # self.synthesis is the template 
+
+        parameters_1 = {
+            "xmax": xmax1,  
+            "nmax": nmax1,
+            "zenith": origin_information["zenith"],
+            "azimuth": origin_information["azimuth"],
+            "magnetic_field_vector": origin_information["magnetic_field_vector"],
+            "core": origin_information["core"]
+        }
+
+        parameters_2 = {
+            "xmax": xmax2,  
+            "nmax": nmax2,
+            "zenith": origin_information["zenith"],
+            "azimuth": origin_information["azimuth"],
+            "magnetic_field_vector": origin_information["magnetic_field_vector"],
+            "core": origin_information["core"]
+        }
+
+        grammages = self.synthesis.grammages
+
+        shower1.set_parameters(grammages, parameters_1)
+        shower2.set_parameters(grammages, parameters_2)
+
+        long_profile_1 = gaisser_hillas_function_LR(
+            x=self.synthesis.grammages,
+            nmax=parameters_1["nmax"],
+            xmax=parameters_1["xmax"],
+            L = 200,
+            R = 0.25 
+        )
+
+        long_profile_2 = gaisser_hillas_function_LR(
+            x=self.synthesis.grammages,
+            nmax=parameters_2["nmax"],
+            xmax=parameters_2["xmax"],
+            L = 200,
+            R = 0.25 
+        )
+
+        origin_xmax = self.synthesis.template_information["xmax"] 
+
+        shower1.set_longitudinal_profile(long_profile_1)
+        shower2.set_longitudinal_profile(long_profile_2)
+
+        e_field_traces_1 = self.synthesis.map_template(shower1)
+        e_field_traces_2 = self.synthesis.map_template(shower2)
+        template_time_traces = self.synthesis.get_time_axis()
+
+        db_traces = e_field_traces_1 + e_field_traces_2
+
+        return db_traces, (long_profile_1, long_profile_2, grammages, template_time_traces, e_field_traces_1, e_field_traces_2, self.synthesis)       # final e field 
+

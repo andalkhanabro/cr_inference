@@ -47,7 +47,6 @@ def truncated_normal_invprior(mean, std, a_min, a_max) -> Partial:
     """Match standard normally distributed random variables to non-standard variables, turncated within a range."""
     return Partial(_truncated_normal_to_standard, mean=mean, std=std, a_min=a_min, a_max=a_max)
 
-
 class TruncatedNormalPrior(WrappedCall):
     @_format_doc
     def __init__(self, mean, std, a_min, a_max, **kwargs):
@@ -67,7 +66,6 @@ class TruncatedNormalPrior(WrappedCall):
         {_doc_shared}
         """
 
-
         self.mean = mean
         self.std = std
         self.low = self.a_min = a_min
@@ -75,3 +73,4 @@ class TruncatedNormalPrior(WrappedCall):
 
         call = truncated_normal_prior(self.mean, self.std, self.a_min, self.a_max)
         super().__init__(call, white_init=True, **kwargs)
+

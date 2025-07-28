@@ -1,0 +1,24 @@
+contourpy==1.3.2
+-e git+https://github.com/kwat0308/cr-pulse-interpolator@25c6f0e9748ee744629fff4c79a4d59a1338ee5a#egg=cr_pulse_interpolator
+cycler==0.12.1
+fonttools==4.59.0
+h5py==3.14.0
+jax==0.6.2
+jax_radio_tools==0.1.3
+jaxlib==0.6.2
+kiwisolver==1.4.8
+matplotlib==3.10.3
+ml_dtypes==0.5.1
+nifty==9.1.0
+nifty8==8.5.7
+numpy==2.2.6
+opt_einsum==3.4.0
+packaging==25.0
+pillow==11.3.0
+pyparsing==3.2.3
+python-dateutil==2.9.0.post0
+radiotools==0.2.5
+scipy==1.15.3
+six==1.17.0
+smiet==0.6.0
+typing_extensions==4.14.1
