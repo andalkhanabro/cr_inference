@@ -1,11 +1,11 @@
 import jax
 import matplotlib.pyplot as plt
-import nifty.re as jft
+import nifty8.re as jft
 from jax import numpy as jnp
 from jax import random
 import os
 import subprocess
-from nifty.re.prior import *
+from nifty8.re.prior import *
 from truncated_normal_prior import TruncatedNormalPrior
 import numpy as np
 jax.config.update("jax_enable_x64", True)
@@ -18,9 +18,9 @@ from inference_utils import *
 
 xmax1_prior = TruncatedNormalPrior(mean= 380, std= 120, a_min= 200, a_max= 550, name = "xmax1", shape=(1,)) 
 delta_xmax_prior = TruncatedNormalPrior(mean = 450, std = 150, a_min = 200, a_max = 700, name = "delta_xmax", shape=(1,))
-nmax1_prior = LogNormalPrior(mean = np.log(2e5), std = 4, name = "nmax1", shape=(1,))
+# nmax1_prior = LogNormalPrior(mean = np.log(2e5), std = 4, name = "nmax1", shape=(1,))
+nmax1_prior = UniformPrior(a_min = 1e5, a_max = 4e5)
 n_fac_prior = TruncatedNormalPrior(mean = 0.8, std = 0.4, a_min = 0.35, a_max = 0.9, name = "n_fac", shape=(1,))
-
 
 # signal model for mock data 
 
@@ -64,16 +64,26 @@ if plot_mock_data:
 
 # likelihood
 
-lh_model = jft.Gaussian(mock_data).amend(signal_model)
+noise_cov = lambda x: 0.1**2 * x
+noise_cov_inv = lambda x: 0.1**-2 * x
 
+# create synthetic data
+
+key, subkey = random.split(key)
+noise_truth = (
+    (noise_cov(jft.ones_like(signal_model.target))) ** 0.5
+) * jft.random_like(key, signal_model.target)
+
+data = mock_data + noise_truth
+lh_model = jft.Gaussian(data, noise_cov_inv).amend(signal_model)
 
 # inference 
 
 n_vi_iterations = 6                     
 delta = 1e-4
 n_samples = 0                  
-
 key, k_i, k_o = random.split(key, 3)
+
 # NOTE, changing the number of samples always triggers a resampling even if
 # `resamples=False`, as more samples have to be drawn that did not exist before.
 samples, state = jft.optimize_kl(
@@ -102,8 +112,6 @@ samples, state = jft.optimize_kl(
     odir="results_intro",
     resume=False,
 )
-
-
 
 
 

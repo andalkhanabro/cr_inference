@@ -1,3 +1,5 @@
+#### for inclined showers (using templates)
+
 from smiet.jax.synthesis import TemplateSynthesis
 from smiet.jax.io import BaseShower
 from smiet.numpy import geo_ce_to_e
@@ -10,10 +12,10 @@ from cr_pulse_interpolator.interpolation_fourier import interp2d_fourier
 import numpy as np
 from smiet.numpy.utilities import bandpass_filter_trace
 from cr_inference.utils import *
+import numpy as np
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["mathtext.fontset"] = "cm" 
-
 
 parser = ArgumentParser()
 
@@ -25,19 +27,23 @@ parser.add_argument("--f_min", type=int)
 parser.add_argument("--f_max", type=int)
 parser.add_argument("--antenna_pos", type=int)
 parser.add_argument("--tag", type=str)
-
+parser.add_argument("--title", type=str)
+parser.add_argument("--dir", type=str)
 
 args = parser.parse_args()
-
-# MACROS 
 
 GEOMAGNETIC = 0 
 CHARGE_EXCESS = 1
 
 # / MACROS 
 
+# template_path = "/cr/tempdata01/kwatanabe/templates"
+# template_name = "template_160010_proton_30_500_100_dt1.h5"          # DETAIL: origin shower is inclined AND (X_max = 776.41)
+# template_name = "template_62804598_proton_30_500_100_dt4.h5"        
+
+
 template_path = "/cr/users/abro/cr_inference/cr_inference/data/templates"                            
-template_name = "template_62804598_proton_30_500_100_dt4.h5"                                                           
+template_name = "template_62804598_proton_30_500_100_dt4.h5"             
 
 template = TemplateSynthesis(
     freq_ar = [30 * units.MHz, 500 * units.MHz, 100 * units.MHz]                                                         
@@ -51,6 +57,9 @@ loaded_template = template.load_template(
 shower_1 = BaseShower()
 shower_2 = BaseShower()
 origin_information = template.template_information
+
+print(origin_information["xmax"])
+print(origin_information["zenith"])
 
 parameters_1 = {
     "xmax": args.xmax1,  
@@ -100,7 +109,7 @@ if np.abs(origin_xmax - parameters_2["xmax"]) > 200:
     print("\nShower 2's xmax is violating accuracy assumptions.")
 
 
-fig, ax = plt.subplots(nrows = 2, ncols =2, figsize=(8,6))
+fig, ax = plt.subplots(nrows = 2, ncols = 2, figsize=(8,6))
 
 ax1, ax2, ax3, ax4 = ax.flatten()
 
@@ -145,6 +154,7 @@ def fourier_on_ef(e_field_magnitude, time_traces):
 
     return frequencies, np.abs(spectrum), n_freq
 
+
 frequencies_geo_1, amp_spectrum_geo_1, _ = fourier_on_ef(geomagnetic_antenna_ef_1, time_traces_per_antenna)
 frequencies_geo_2, amp_spectrum_geo_2, _ = fourier_on_ef(geomagnetic_antenna_ef_2, time_traces_per_antenna)
 frequencies_geo_db, amp_spectrum_geo_db, _ = fourier_on_ef(geomagnetic_antenna_ef_1 + geomagnetic_antenna_ef_2, time_traces_per_antenna)
@@ -178,8 +188,8 @@ fluence_in_band = get_fluence_in_band(db_traces[0, :, :],
 
 XI, YI, ZI = interpolate_fluence(ant_x, ant_y, fluence_in_band)
 
-fluence_cmap = plt.get_cmap('jet')
-
+fluence_cmap = plt.get_cmap('seismic')
+                                                                                 
 fluence_norm = mcolors.Normalize(vmin=min(fluence_in_band), vmax=max(fluence_in_band))
 
 mesh = ax4.pcolormesh(
@@ -202,15 +212,22 @@ ax4.set_ylabel("(v x v x B) [m]")
 cbar = fig.colorbar(mesh, ax=ax4)
 cbar.set_label(r'Fluence (eV / $m^2$)')
 
+if args.title:
+    fig.suptitle(args.title, fontsize=12)
+
 ### / fluence calc ends here ####
 
 plt.tight_layout()
 
-output_dir = '/cr/users/abro/cr_inference/cr_inference/plots'
-os.makedirs(output_dir, exist_ok=True)
+if dir:
+    output_dir = args.dir
+else:
+    output_dir = '/cr/users/abro/cr_inference/cr_inference/plots'
 
-full_path = os.path.join(output_dir, f'62804598_30_500_antenna_{antenna_position}_{args.tag}.png')
+os.makedirs(output_dir, exist_ok=True)
+full_path = os.path.join(output_dir, f'160010_30_500_antenna_{antenna_position}_{args.tag}.png')
 plt.savefig(full_path, dpi=300, bbox_inches='tight', transparent=False)
+
 
 
 

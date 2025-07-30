@@ -7,7 +7,7 @@ from typing import Callable, Optional
 
 from jax import numpy as jnp
 from jax.tree_util import Partial, tree_map
-
+import jax
 from nifty8.re.num.stats_distributions import _normal_to_standard, _standard_to_normal, _standard_to_uniform
 from nifty8.re.model import WrappedCall
 from nifty8.re.prior import _format_doc

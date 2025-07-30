@@ -82,7 +82,6 @@ Returns the interpolated values (ZI) as a function of the coordinate grid (XI, Y
 
 """
 
-
 def interpolate_fluence(ant_x, ant_y, fluence_in_band, dist_scale=600.0):
 
     fourier_interpolator = interp2d_fourier(ant_x, ant_y, fluence_in_band, fill_value="extrapolate")
@@ -91,14 +90,5 @@ def interpolate_fluence(ant_x, ant_y, fluence_in_band, dist_scale=600.0):
     ZI = fourier_interpolator(XI, YI)
 
     return XI, YI, ZI
-
-
-
-
-
-
-
-
-
 
 

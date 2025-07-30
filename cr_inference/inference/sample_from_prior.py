@@ -17,7 +17,7 @@ plt.rcParams["mathtext.fontset"] = "cm"
 
 verbose = True
 
-for iteration in range(1, 20):
+for iteration in range(2):
     tag = f"prior_sample_{iteration}"
     title = f"Prior Sample {iteration}"
     seed = int(time.time())
@@ -56,7 +56,6 @@ for iteration in range(1, 20):
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     dir = "/cr/users/abro/cr_inference/cr_inference/plots/prior_samples"
 
-
     cmd = [
         "python", "-m", "cr_inference.executables.forward_model_t_jax",
         "--xmax1", str(xmax1),
@@ -66,9 +65,7 @@ for iteration in range(1, 20):
         "--antenna_pos", str(antenna_pos),
         "--f_min", str(f_min),
         "--f_max", str(f_max),
-        "--tag", tag,
-        "--title", title,
-        "--dir", dir
+        "--tag", tag
     ]
 
     subprocess.run(cmd, cwd = project_root)
